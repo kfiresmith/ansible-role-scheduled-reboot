@@ -25,32 +25,45 @@ Role Variables
 **Note:** Some variables are mandatory and should be set in group_vars. Other vars will simply no-op if unset.
 
 ### Reboot schedule
+
 Set the system reboot schedule time, in cron notation. Default: unset
+
 `reboot_schedule: '50 5 * * *'`
 
 ### Mail-to addresses
+
 A **space-separated** list of recipients to send email to when problems occur. Default: 'root'
+
 `scheduled_reboot_mailto: root kodiak@work.org`
 
 ### Email when scheduled-reboot is disabled
-Send a notification email at script exection time when scheduled-reboot is disabled. Default: unset
+
+Send a notification email at script exection time when scheduled-reboot is disabled. Mandatory. Default: unset
 
 ### Cron job state
+
 Ensure `scheduled-reboot` cron job is present or absent. Default: absent
+
 `scheduled_reboot_cronjob_state: absent`
 
 ### Scheduled-reboot package state
+
 Package state for 'scheduled-reboot' package. [absent, latest, present] Default: present
+
 `scheduled_reboot_package_state: present`
 
 ### Post-reboot oneshot service enabled
+
 Should post-reboot systemd one-shot service be enabled? [true|false] Default: true
 Controls the one-shot service that runs post-boot user scripts.
+
 `scheduled_reboot_post_reboot_service_enabled: true`
 
 ### Package Upgrade 
-Run package upgrades immediately prior to reboot [true|false]
-`scheduled_reboot_upgrade_at_shutdown: true`
+
+Run package upgrades immediately prior to reboot [true|false] Default: false
+
+`scheduled_reboot_upgrade_at_shutdown: false`
 
 Example Playbook
 ----------------
