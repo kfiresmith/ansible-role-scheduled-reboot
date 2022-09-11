@@ -49,4 +49,3 @@
     regexp: '^\s*#?\s*upgrade_at_shutdown='
     line: "upgrade_at_shutdown='{{ scheduled_reboot_upgrade_at_shutdown }}'"
   when: scheduled_reboot_upgrade_at_shutdown is defined
-

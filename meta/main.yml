@@ -3,14 +3,15 @@ galaxy_info:
   description: Manage scheduled-reboot, a script-driven framework for performing automated patching & rebooting of systems
   company: Woods Hole Oceanographic Institution
   min_ansible_version: 2.0
+  role_name: scheduled-reboot
 
   platforms:
     - name: Ubuntu
       versions:
-        - 16.04
-        - 18.04
-        - 20.04
-        - 22.04
+        - xenial
+        - bionic
+        - focal
+        - jammy
 
   galaxy_tags:
     - systemd
