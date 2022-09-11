@@ -1,0 +1,6 @@
+---
+
+- name: install scheduled-reboot deb package
+  ansible.builtin.apt:
+    name: scheduled-reboot
+    state: "{{ scheduled_reboot_package_state }}"

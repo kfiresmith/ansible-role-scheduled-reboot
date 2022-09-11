@@ -1,0 +1,10 @@
+---
+# defaults file for scheduled-reboot
+
+scheduled_reboot_cronjob_state: absent
+
+scheduled_reboot_mailto: root
+
+scheduled_reboot_package_state: present
+
+scheduled_reboot_post_reboot_service_enabled: true

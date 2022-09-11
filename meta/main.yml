@@ -1,0 +1,18 @@
+galaxy_info:
+  author: Kodiak Firesmith
+  description: Manage scheduled-reboot, a script-driven framework for performing automated patching & rebooting of systems
+  company: Woods Hole Oceanographic Institution
+  min_ansible_version: 2.0
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - 16.04
+        - 18.04
+        - 20.04
+        - 22.04
+
+  galaxy_tags:
+    - systemd
+    - scheduled-reboot
+...

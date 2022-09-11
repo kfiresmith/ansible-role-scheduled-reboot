@@ -1,0 +1,52 @@
+---
+
+- include_tasks: Ubuntu.yml
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Enable the post-reboot service unit
+  ansible.builtin.systemd:
+    name: post-reboot.service
+    enabled: "{{ scheduled_reboot_post_reboot_service_enabled }}"
+
+- name: Install cron job
+  ansible.builtin.cron:
+    name: scheduled-reboot
+    cron_file: scheduled-reboot
+    user: root
+    job: /usr/local/bin/scheduled-reboot
+    state: "{{ scheduled_reboot_cronjob_state }}"
+    minute: "{{ reboot_schedule.split(' ')[0] }}"
+    hour: "{{ reboot_schedule.split(' ')[1] }}"
+    day: "{{ reboot_schedule.split(' ')[2] }}"
+    month: "{{ reboot_schedule.split(' ')[3] }}"
+    weekday: "{{ reboot_schedule.split(' ')[4] }}"
+  when: reboot_schedule is defined and scheduled_reboot_cronjob_state == 'present'
+
+- name: Customize defaults file - email when disabled
+  ansible.builtin.lineinfile:
+    path: /etc/default/scheduled-reboot
+    regexp: '^\s*#?\s*email_when_disabled='
+    line: "email_when_disabled='{{ scheduled_reboot_email_when_disabled }}'"
+  when: scheduled_reboot_email_when_disabled is defined
+
+- name: Customize defaults file - mailto
+  ansible.builtin.lineinfile:
+    path: /etc/default/scheduled-reboot
+    regexp: '^\s*#?\s*mailto='
+    line: "mailto='{{ scheduled_reboot_mailto }}'"
+  when: scheduled_reboot_mailto is defined
+
+- name: Customize defaults file - reboots disabled
+  ansible.builtin.lineinfile:
+    path: /etc/default/scheduled-reboot
+    regexp: '^\s*#?\s*scheduled_reboots_disabled='
+    line: "scheduled_reboots_disabled='{{ scheduled_reboot_scheduled_reboots_disabled }}'"
+  when: scheduled_reboot_scheduled_reboots_disabled is defined
+
+- name: Customize defaults file - upgrade at shutdown
+  ansible.builtin.lineinfile:
+    path: /etc/default/scheduled-reboot
+    regexp: '^\s*#?\s*upgrade_at_shutdown='
+    line: "upgrade_at_shutdown='{{ scheduled_reboot_upgrade_at_shutdown }}'"
+  when: scheduled_reboot_upgrade_at_shutdown is defined
+
