@@ -1,0 +1,11 @@
+---
+argument_specs:
+  main:
+    options:
+      scheduled_reboot_package_state:
+        type: str
+        default: present
+        choices:
+          - absent
+          - present
+          - latest
