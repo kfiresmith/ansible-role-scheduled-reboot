@@ -9,3 +9,11 @@ argument_specs:
           - absent
           - present
           - latest
+      reboot_schedule_timer:
+        type: str
+        required: false
+        description: >-
+          systemd OnCalendar= expression used to schedule scheduled-reboot via a
+          systemd timer. Takes precedence over reboot_schedule/cron when set to a
+          non-empty value; removing it (with reboot_schedule still set) reverts
+          the host back to cron scheduling.

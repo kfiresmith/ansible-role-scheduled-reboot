@@ -1,0 +1,65 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Check scheduled-reboot.timer unit state
+      ansible.builtin.command:
+        cmd: systemctl is-enabled scheduled-reboot.timer
+      register: _timer_enabled
+      changed_when: false
+
+    - name: Check scheduled-reboot.timer is active
+      ansible.builtin.command:
+        cmd: systemctl is-active scheduled-reboot.timer
+      register: _timer_active
+      changed_when: false
+
+    - name: Assert the systemd timer is enabled and running
+      ansible.builtin.assert:
+        that:
+          - _timer_enabled.stdout == 'enabled'
+          - _timer_active.stdout == 'active'
+        fail_msg: "scheduled-reboot.timer should be enabled and active when reboot_schedule_timer is set"
+
+    - name: Read the installed timer unit
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/scheduled-reboot.timer
+      register: _timer_unit_contents
+
+    - name: Assert the timer unit has the expected OnCalendar value
+      vars:
+        _timer_unit_text: "{{ _timer_unit_contents.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'OnCalendar=*-*-* 05:50:00' in _timer_unit_text"
+        fail_msg: "scheduled-reboot.timer OnCalendar= does not match reboot_schedule_timer"
+
+    - name: Check for a leftover scheduled-reboot cron job
+      ansible.builtin.command:
+        cmd: crontab -l -u root
+      register: _root_crontab
+      changed_when: false
+      failed_when: false
+
+    - name: Check for the scheduled-reboot cron.d file
+      ansible.builtin.stat:
+        path: /etc/cron.d/scheduled-reboot
+      register: _cron_d_file
+
+    - name: Assert no scheduled-reboot cron job remains (timer takes precedence)
+      ansible.builtin.assert:
+        that:
+          - not _cron_d_file.stat.exists
+          - "'scheduled-reboot' not in _root_crontab.stdout"
+        fail_msg: "systemd timer is set, but a scheduled-reboot cron job is still present"
+
+    - name: Check the post-reboot service is enabled
+      ansible.builtin.command:
+        cmd: systemctl is-enabled post-reboot.service
+      register: _post_reboot_enabled
+      changed_when: false
+
+    - name: Assert post-reboot.service is enabled
+      ansible.builtin.assert:
+        that:
+          - _post_reboot_enabled.stdout == 'enabled'

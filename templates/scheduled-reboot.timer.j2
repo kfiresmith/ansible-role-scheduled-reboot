@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Timer to trigger scheduled-reboot
+
+[Timer]
+OnCalendar={{ reboot_schedule_timer }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,68 @@
+---
+# Exercises the bidirectional cron <-> systemd timer transition on top of the
+# steady cron state installed by converge.yml.
+
+- name: Transition from cron to a systemd timer
+  hosts: all
+  tasks:
+    - name: Include the scheduled-reboot role with reboot_schedule_timer set
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."
+      vars:
+        reboot_schedule_timer: '*-*-* 06:15:00'
+
+    - name: Check scheduled-reboot.timer is enabled and active
+      ansible.builtin.command:
+        cmd: "systemctl is-{{ item }} scheduled-reboot.timer"
+      loop:
+        - enabled
+        - active
+      register: _timer_state
+      changed_when: false
+
+    - name: Check for a leftover scheduled-reboot cron.d file
+      ansible.builtin.stat:
+        path: /etc/cron.d/scheduled-reboot
+      register: _cron_d_file_after_timer
+
+    - name: Assert cron was removed once the timer was installed
+      ansible.builtin.assert:
+        that:
+          - _timer_state.results[0].stdout == 'enabled'
+          - _timer_state.results[1].stdout == 'active'
+          - not _cron_d_file_after_timer.stat.exists
+        fail_msg: >-
+          Setting reboot_schedule_timer should install/enable the systemd
+          timer and remove the pre-existing scheduled-reboot cron job.
+
+- name: Transition back from the systemd timer to cron
+  hosts: all
+  tasks:
+    - name: Include the scheduled-reboot role with reboot_schedule_timer cleared
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."
+      vars:
+        reboot_schedule_timer: ''
+
+    - name: Check the scheduled-reboot systemd timer unit files are gone
+      ansible.builtin.stat:
+        path: "/etc/systemd/system/{{ item }}"
+      register: _timer_unit_files
+      loop:
+        - scheduled-reboot.timer
+        - scheduled-reboot.service
+
+    - name: Check for the restored scheduled-reboot cron.d file
+      ansible.builtin.stat:
+        path: /etc/cron.d/scheduled-reboot
+      register: _cron_d_file_after_revert
+
+    - name: Assert the timer was torn down and cron was restored
+      ansible.builtin.assert:
+        that:
+          - not _timer_unit_files.results[0].stat.exists
+          - not _timer_unit_files.results[1].stat.exists
+          - _cron_d_file_after_revert.stat.exists
+        fail_msg: >-
+          Clearing reboot_schedule_timer should remove the systemd timer and
+          service units and reinstall the scheduled-reboot cron job.

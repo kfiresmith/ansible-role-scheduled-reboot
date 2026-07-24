@@ -1,0 +1,58 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Check for the scheduled-reboot cron.d file
+      ansible.builtin.stat:
+        path: /etc/cron.d/scheduled-reboot
+      register: _cron_d_file
+
+    - name: Read the installed cron.d file
+      ansible.builtin.slurp:
+        src: /etc/cron.d/scheduled-reboot
+      register: _cron_d_contents
+      when: _cron_d_file.stat.exists
+
+    - name: Assert the cron job is present with the expected schedule
+      vars:
+        _cron_d_text: "{{ _cron_d_contents.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - _cron_d_file.stat.exists
+          - "'50 5 * * *' in _cron_d_text"
+          - "'/usr/local/bin/scheduled-reboot' in _cron_d_text"
+        fail_msg: "scheduled-reboot cron job is missing or does not match reboot_schedule"
+
+    - name: Check no scheduled-reboot systemd timer/service unit files remain
+      ansible.builtin.stat:
+        path: "/etc/systemd/system/{{ item }}"
+      register: _timer_unit_files
+      loop:
+        - scheduled-reboot.timer
+        - scheduled-reboot.service
+
+    - name: Check no scheduled-reboot systemd timer unit is active
+      ansible.builtin.command:
+        cmd: systemctl is-active scheduled-reboot.timer
+      register: _timer_active
+      changed_when: false
+      failed_when: false
+
+    - name: Assert the systemd timer is fully absent
+      ansible.builtin.assert:
+        that:
+          - not _timer_unit_files.results[0].stat.exists
+          - not _timer_unit_files.results[1].stat.exists
+          - _timer_active.stdout != 'active'
+        fail_msg: "cron-fallback scenario should leave no systemd timer behind"
+
+    - name: Check the post-reboot service is enabled
+      ansible.builtin.command:
+        cmd: systemctl is-enabled post-reboot.service
+      register: _post_reboot_enabled
+      changed_when: false
+
+    - name: Assert post-reboot.service is enabled
+      ansible.builtin.assert:
+        that:
+          - _post_reboot_enabled.stdout == 'enabled'

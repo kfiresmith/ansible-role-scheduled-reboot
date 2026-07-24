@@ -1,0 +1,6 @@
+---
+
+- name: install scheduled-reboot rpm package
+  ansible.builtin.dnf:
+    name: scheduled-reboot
+    state: "{{ scheduled_reboot_package_state }}"

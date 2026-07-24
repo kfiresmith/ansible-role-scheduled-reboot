@@ -1,5 +1,8 @@
 ---
-- hosts: localhost
+- name: Test
+  hosts: localhost
   remote_user: root
-  roles:
-    - scheduled-reboot
+  tasks:
+    - name: Include the scheduled-reboot role
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/.."

@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Run scheduled-reboot
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/scheduled-reboot

@@ -1,26 +1,119 @@
 ---
 
 - include_tasks: Ubuntu.yml
-  when: ansible_distribution == 'Ubuntu'
+  when: ansible_facts['os_family'] == 'Debian'
+
+- include_tasks: RedHat.yml
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Enable the post-reboot service unit
   ansible.builtin.systemd:
     name: post-reboot.service
     enabled: "{{ scheduled_reboot_post_reboot_service_enabled }}"
 
-- name: Install cron job
-  ansible.builtin.cron:
-    name: scheduled-reboot
-    cron_file: scheduled-reboot
-    user: root
-    job: /usr/local/bin/scheduled-reboot
-    state: "{{ scheduled_reboot_cronjob_state }}"
-    minute: "{{ reboot_schedule.split(' ')[0] }}"
-    hour: "{{ reboot_schedule.split(' ')[1] }}"
-    day: "{{ reboot_schedule.split(' ')[2] }}"
-    month: "{{ reboot_schedule.split(' ')[3] }}"
-    weekday: "{{ reboot_schedule.split(' ')[4] }}"
-  when: reboot_schedule is defined and scheduled_reboot_cronjob_state == 'present'
+- name: Check for an existing scheduled-reboot systemd timer unit
+  ansible.builtin.stat:
+    path: /etc/systemd/system/scheduled-reboot.timer
+  register: _scheduled_reboot_timer_unit
+
+- name: Validate reboot_schedule cron syntax
+  vars:
+    _reboot_schedule_fields: "{{ reboot_schedule.split(' ') }}"
+    _cron_field_regex: '^(\*(\/[0-9]+)?|[0-9]+(-[0-9]+)?(\/[0-9]+)?)(,(\*(\/[0-9]+)?|[0-9]+(-[0-9]+)?(\/[0-9]+)?))*$'
+  ansible.builtin.assert:
+    that:
+      - _reboot_schedule_fields | length == 5
+      - _reboot_schedule_fields | map('regex_search', _cron_field_regex) | select('none') | list | length == 0
+    fail_msg: >-
+      reboot_schedule ('{{ reboot_schedule }}') is not valid cron syntax. It
+      must be 5 whitespace-separated fields (minute hour day month weekday),
+      each a number, range, step, list, or '*' -- e.g. '50 5 * * *'.
+    success_msg: "reboot_schedule cron syntax is valid."
+  when: reboot_schedule is defined
+
+- name: Validate reboot_schedule_timer syntax with systemd-analyze
+  ansible.builtin.command:
+    cmd: systemd-analyze calendar "{{ reboot_schedule_timer }}"
+  register: _reboot_schedule_timer_check
+  changed_when: false
+  failed_when: _reboot_schedule_timer_check.rc != 0
+  when: reboot_schedule_timer is defined and reboot_schedule_timer | length > 0
+
+- name: Schedule scheduled-reboot with a systemd timer
+  when: reboot_schedule_timer is defined and reboot_schedule_timer | length > 0
+  block:
+    - name: Install the scheduled-reboot systemd service unit
+      ansible.builtin.template:
+        src: scheduled-reboot.service.j2
+        dest: /etc/systemd/system/scheduled-reboot.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Install the scheduled-reboot systemd timer unit
+      ansible.builtin.template:
+        src: scheduled-reboot.timer.j2
+        dest: /etc/systemd/system/scheduled-reboot.timer
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Reload systemd unit files
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and start the scheduled-reboot timer
+      ansible.builtin.systemd:
+        name: scheduled-reboot.timer
+        enabled: true
+        state: started
+
+    - name: Remove the legacy scheduled-reboot cron job (systemd timer takes precedence)
+      ansible.builtin.cron:
+        name: scheduled-reboot
+        cron_file: scheduled-reboot
+        user: root
+        state: absent
+
+- name: Fall back to cron scheduling for scheduled-reboot
+  when: reboot_schedule_timer is not defined or reboot_schedule_timer | length == 0
+  block:
+    - name: Remove a previously installed scheduled-reboot systemd timer
+      when: _scheduled_reboot_timer_unit.stat.exists
+      block:
+        - name: Stop and disable the scheduled-reboot systemd timer
+          ansible.builtin.systemd:
+            name: scheduled-reboot.timer
+            enabled: false
+            state: stopped
+
+        - name: Remove the scheduled-reboot systemd timer unit file
+          ansible.builtin.file:
+            path: /etc/systemd/system/scheduled-reboot.timer
+            state: absent
+
+        - name: Remove the scheduled-reboot systemd service unit file
+          ansible.builtin.file:
+            path: /etc/systemd/system/scheduled-reboot.service
+            state: absent
+
+        - name: Reload systemd unit files
+          ansible.builtin.systemd:
+            daemon_reload: true
+
+    - name: Install cron job
+      ansible.builtin.cron:
+        name: scheduled-reboot
+        cron_file: scheduled-reboot
+        user: root
+        job: /usr/local/bin/scheduled-reboot
+        state: "{{ scheduled_reboot_cronjob_state }}"
+        minute: "{{ reboot_schedule.split(' ')[0] }}"
+        hour: "{{ reboot_schedule.split(' ')[1] }}"
+        day: "{{ reboot_schedule.split(' ')[2] }}"
+        month: "{{ reboot_schedule.split(' ')[3] }}"
+        weekday: "{{ reboot_schedule.split(' ')[4] }}"
+      when: reboot_schedule is defined and scheduled_reboot_cronjob_state == 'present'
 
 - name: Customize defaults file - email when disabled
   ansible.builtin.lineinfile:

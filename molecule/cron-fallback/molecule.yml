@@ -1,0 +1,111 @@
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: molecule/requirements.yml
+driver:
+  name: docker
+platforms:
+- name: ubuntu2004
+  image: geerlingguy/docker-ubuntu2004-ansible:latest
+  pre_build_image: true
+  privileged: true
+  override_command: false
+  cgroupns_mode: host
+  security_opts:
+  - apparmor=unconfined
+  - seccomp=unconfined
+  volumes:
+  - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  groups:
+  - debian_family
+- name: ubuntu2204
+  image: geerlingguy/docker-ubuntu2204-ansible:latest
+  pre_build_image: true
+  privileged: true
+  override_command: false
+  cgroupns_mode: host
+  security_opts:
+  - apparmor=unconfined
+  - seccomp=unconfined
+  volumes:
+  - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  groups:
+  - debian_family
+- name: ubuntu2404
+  image: geerlingguy/docker-ubuntu2404-ansible:latest
+  pre_build_image: true
+  privileged: true
+  override_command: false
+  cgroupns_mode: host
+  security_opts:
+  - apparmor=unconfined
+  - seccomp=unconfined
+  volumes:
+  - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  groups:
+  - debian_family
+- name: ubuntu2604
+  image: geerlingguy/docker-ubuntu2604-ansible:latest
+  pre_build_image: true
+  privileged: true
+  override_command: false
+  cgroupns_mode: host
+  security_opts:
+  - apparmor=unconfined
+  - seccomp=unconfined
+  volumes:
+  - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  groups:
+  - debian_family
+- name: rockylinux8
+  image: geerlingguy/docker-rockylinux8-ansible:latest
+  pre_build_image: true
+  privileged: true
+  override_command: false
+  cgroupns_mode: host
+  security_opts:
+  - apparmor=unconfined
+  - seccomp=unconfined
+  volumes:
+  - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  groups:
+  - redhat_family
+- name: rockylinux9
+  image: geerlingguy/docker-rockylinux9-ansible:latest
+  pre_build_image: true
+  privileged: true
+  override_command: false
+  cgroupns_mode: host
+  security_opts:
+  - apparmor=unconfined
+  - seccomp=unconfined
+  volumes:
+  - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  groups:
+  - redhat_family
+- name: rockylinux10
+  image: geerlingguy/docker-rockylinux10-ansible:latest
+  pre_build_image: true
+  privileged: true
+  override_command: false
+  cgroupns_mode: host
+  security_opts:
+  - apparmor=unconfined
+  - seccomp=unconfined
+  volumes:
+  - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  groups:
+  - redhat_family
+provisioner:
+  name: ansible
+  inventory:
+    group_vars:
+      all:
+        reboot_schedule: 50 5 * * *
+        scheduled_reboot_cronjob_state: present
+        scheduled_reboot_email_when_disabled: true
+        scheduled_reboot_mailto: root
+        scheduled_reboot_package_state: present
+verifier:
+  name: ansible

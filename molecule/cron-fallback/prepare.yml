@@ -1,0 +1,6 @@
+---
+- name: Prepare
+  hosts: all
+  tasks:
+    - name: Build and install a stub scheduled-reboot package
+      include_tasks: ../resources/tasks/stub-package.yml

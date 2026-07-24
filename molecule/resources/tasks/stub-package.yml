@@ -1,0 +1,170 @@
+---
+# Builds and installs a minimal stub 'scheduled-reboot' package so the role's
+# real install task (name: scheduled-reboot, state: present) is a no-op
+# against the local package database, without needing a real hosted repo.
+# The upstream scheduled-reboot package is self-hosted (see README) and isn't
+# available on any public apt/dnf repo, so molecule can't just install it by
+# name. The stub ships a post-reboot.service unit matching the real package,
+# since the role enables/checks that unit.
+
+- name: Build a stub Debian package
+  when: ansible_facts['os_family'] == 'Debian'
+  block:
+    - name: Create stub package directory layout
+      ansible.builtin.file:
+        path: "/tmp/scheduled-reboot-stub/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - DEBIAN
+        - usr/local/bin
+        - etc/systemd/system
+        - etc/default
+
+    - name: Write stub DEBIAN/control
+      ansible.builtin.copy:
+        dest: /tmp/scheduled-reboot-stub/DEBIAN/control
+        mode: '0644'
+        content: |
+          Package: scheduled-reboot
+          Version: 0.0.0-molecule-stub
+          Architecture: all
+          Maintainer: molecule <molecule@example.com>
+          Description: molecule test stub for scheduled-reboot
+
+    - name: Write stub /usr/local/bin/scheduled-reboot
+      ansible.builtin.copy:
+        dest: /tmp/scheduled-reboot-stub/usr/local/bin/scheduled-reboot
+        mode: '0755'
+        content: |
+          #!/bin/sh
+          exit 0
+
+    - name: Write stub post-reboot.service unit
+      ansible.builtin.copy:
+        dest: /tmp/scheduled-reboot-stub/etc/systemd/system/post-reboot.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=molecule test stub for post-reboot
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/bin/true
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Write stub /etc/default/scheduled-reboot
+      ansible.builtin.copy:
+        dest: /tmp/scheduled-reboot-stub/etc/default/scheduled-reboot
+        mode: '0644'
+        content: |
+          # molecule test stub for scheduled-reboot
+          scheduled_reboots_disabled='false'
+          email_when_disabled='true'
+          upgrade_at_shutdown='false'
+          mailto='root'
+
+    - name: Build the stub .deb
+      ansible.builtin.command:
+        cmd: dpkg-deb --build /tmp/scheduled-reboot-stub /tmp/scheduled-reboot-stub.deb
+        creates: /tmp/scheduled-reboot-stub.deb
+
+    - name: Install the stub .deb
+      ansible.builtin.apt:
+        deb: /tmp/scheduled-reboot-stub.deb
+
+- name: Build a stub RedHat package
+  when: ansible_facts['os_family'] == 'RedHat'
+  block:
+    - name: Install RPM build tools and cron
+      ansible.builtin.dnf:
+        name:
+          - rpm-build
+          - cronie
+        state: present
+
+    - name: Enable and start the crond service
+      ansible.builtin.systemd:
+        name: crond
+        enabled: true
+        state: started
+
+    - name: Create rpmbuild directory layout
+      ansible.builtin.file:
+        path: "/root/rpmbuild/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - SPECS
+        - BUILDROOT
+
+    - name: Write stub spec file
+      ansible.builtin.copy:
+        dest: /root/rpmbuild/SPECS/scheduled-reboot.spec
+        mode: '0644'
+        content: |
+          Name: scheduled-reboot
+          Version: 0.0.0
+          Release: molecule_stub
+          Summary: molecule test stub for scheduled-reboot
+          License: MIT
+          BuildArch: noarch
+
+          %description
+          molecule test stub for scheduled-reboot
+
+          %install
+          mkdir -p %{buildroot}/usr/local/bin
+          cat > %{buildroot}/usr/local/bin/scheduled-reboot <<'EOF'
+          #!/bin/sh
+          exit 0
+          EOF
+          chmod 755 %{buildroot}/usr/local/bin/scheduled-reboot
+
+          mkdir -p %{buildroot}/etc/systemd/system
+          cat > %{buildroot}/etc/systemd/system/post-reboot.service <<'EOF'
+          [Unit]
+          Description=molecule test stub for post-reboot
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/bin/true
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
+          mkdir -p %{buildroot}/etc/default
+          cat > %{buildroot}/etc/default/scheduled-reboot <<'EOF'
+          # molecule test stub for scheduled-reboot
+          scheduled_reboots_disabled='false'
+          email_when_disabled='true'
+          upgrade_at_shutdown='false'
+          mailto='root'
+          EOF
+
+          %files
+          /usr/local/bin/scheduled-reboot
+          /etc/systemd/system/post-reboot.service
+          /etc/default/scheduled-reboot
+
+    - name: Build the stub .rpm
+      ansible.builtin.command:
+        cmd: rpmbuild -bb --define "_topdir /root/rpmbuild" /root/rpmbuild/SPECS/scheduled-reboot.spec
+        creates: /root/rpmbuild/RPMS/noarch/scheduled-reboot-0.0.0-molecule_stub.noarch.rpm
+
+    - name: Find the built stub .rpm
+      ansible.builtin.find:
+        paths: /root/rpmbuild/RPMS/noarch
+        patterns: "scheduled-reboot-*.rpm"
+      register: _stub_rpm
+
+    - name: Install the stub .rpm
+      ansible.builtin.dnf:
+        name: "{{ _stub_rpm.files[0].path }}"
+        state: present
+        disable_gpg_check: true

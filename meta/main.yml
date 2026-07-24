@@ -4,6 +4,7 @@ galaxy_info:
   company: Woods Hole Oceanographic Institution
   min_ansible_version: 2.0
   role_name: scheduled_reboot
+  namespace: kfiresmith
 
   platforms:
     - name: Ubuntu
@@ -12,6 +13,13 @@ galaxy_info:
         - bionic
         - focal
         - jammy
+        - noble
+        - resolute
+    - name: EL
+      versions:
+        - '8'
+        - '9'
+        - '10'
 
   galaxy_tags:
     - systemd

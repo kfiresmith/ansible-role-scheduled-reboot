@@ -1,0 +1,7 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: Include the scheduled-reboot role
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."
