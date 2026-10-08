@@ -4,3 +4,11 @@
   tasks:
     - name: Build and install a stub scheduled-reboot package
       include_tasks: ../resources/tasks/stub-package.yml
+
+    # What role versions before local.conf did: edit the conffile in place.
+    # Converge should move the setting to local.conf and restore the file.
+    - name: Simulate a conffile edited by an older version of the role
+      ansible.builtin.lineinfile:
+        path: /etc/default/scheduled-reboot
+        regexp: '^mailto='
+        line: "mailto='root legacy@example.com'"

@@ -5,7 +5,8 @@
 # The upstream scheduled-reboot package is self-hosted (see README) and isn't
 # available on any public apt/dnf repo, so molecule can't just install it by
 # name. The stub ships a post-reboot.service unit matching the real package,
-# since the role enables/checks that unit.
+# since the role enables/checks that unit, and the >= 0.56 reference copy of
+# the defaults file, which switches the role to local.conf.
 
 - name: Build a stub Debian package
   when: ansible_facts['os_family'] == 'Debian'
@@ -20,6 +21,7 @@
         - usr/local/bin
         - etc/systemd/system
         - etc/default
+        - usr/local/share/scheduled-reboot
 
     - name: Write stub DEBIAN/control
       ansible.builtin.copy:
@@ -56,9 +58,9 @@
           [Install]
           WantedBy=multi-user.target
 
-    - name: Write stub /etc/default/scheduled-reboot
+    - name: Write stub /etc/default/scheduled-reboot and its reference copy
       ansible.builtin.copy:
-        dest: /tmp/scheduled-reboot-stub/etc/default/scheduled-reboot
+        dest: "/tmp/scheduled-reboot-stub/{{ item }}"
         mode: '0644'
         content: |
           # molecule test stub for scheduled-reboot
@@ -66,6 +68,9 @@
           email_when_disabled='true'
           upgrade_at_shutdown='false'
           mailto='root'
+      loop:
+        - etc/default/scheduled-reboot
+        - usr/local/share/scheduled-reboot/default.conf
 
     - name: Build the stub .deb
       ansible.builtin.command:
@@ -146,11 +151,14 @@
           upgrade_at_shutdown='false'
           mailto='root'
           EOF
+          mkdir -p %{buildroot}/usr/local/share/scheduled-reboot
+          cp %{buildroot}/etc/default/scheduled-reboot %{buildroot}/usr/local/share/scheduled-reboot/default.conf
 
           %files
           /usr/local/bin/scheduled-reboot
           /etc/systemd/system/post-reboot.service
           /etc/default/scheduled-reboot
+          /usr/local/share/scheduled-reboot/default.conf
 
     - name: Build the stub .rpm
       ansible.builtin.command:

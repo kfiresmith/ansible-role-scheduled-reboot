@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+#
+# Local overrides for scheduled-reboot, sourced after the package defaults in
+# /etc/default/scheduled-reboot. Edit the role variables, not this file.
+{% if scheduled_reboot_scheduled_reboots_disabled is defined %}
+scheduled_reboots_disabled={{ scheduled_reboot_scheduled_reboots_disabled | string | lower | quote }}
+{% endif %}
+{% if scheduled_reboot_email_when_disabled is defined %}
+email_when_disabled={{ scheduled_reboot_email_when_disabled | string | lower | quote }}
+{% endif %}
+{% if scheduled_reboot_upgrade_at_shutdown is defined %}
+upgrade_at_shutdown={{ scheduled_reboot_upgrade_at_shutdown | string | lower | quote }}
+{% endif %}
+{% if scheduled_reboot_mailto is defined %}
+mailto={{ scheduled_reboot_mailto | string | lower | quote }}
+{% endif %}

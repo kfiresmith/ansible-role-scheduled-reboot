@@ -1,0 +1,109 @@
+---
+# Settings go to /etc/scheduled-reboot/local.conf, which the package reads
+# after /etc/default/scheduled-reboot (scheduled-reboot >= 0.56). The defaults
+# file is a dpkg/rpm conffile: editing it makes every package release that
+# changes it stop at a conffile prompt, which fails non-interactive upgrades.
+
+- name: Check whether the installed scheduled-reboot package reads local.conf
+  ansible.builtin.stat:
+    path: "{{ scheduled_reboot_reference_conffile }}"
+  register: _scheduled_reboot_reference
+
+- name: Configure scheduled-reboot through local.conf
+  when: _scheduled_reboot_reference.stat.exists
+  block:
+    - name: Ensure the scheduled-reboot config directory exists
+      ansible.builtin.file:
+        path: /etc/scheduled-reboot
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Write scheduled-reboot local overrides
+      ansible.builtin.template:
+        src: local.conf.j2
+        dest: /etc/scheduled-reboot/local.conf
+        owner: root
+        group: root
+        mode: '0644'
+        validate: bash -n %s
+
+    - name: Check whether the defaults conffile has local edits
+      ansible.builtin.script:
+        cmd: >-
+          conffile-status.sh
+          {{ scheduled_reboot_reference_conffile | quote }}
+          /etc/default/scheduled-reboot
+          {{ _scheduled_reboot_managed_keys | join(' ') }}
+        executable: /bin/bash
+      vars:
+        _scheduled_reboot_managed_keys: >-
+          {{
+            (['scheduled_reboots_disabled'] if scheduled_reboot_scheduled_reboots_disabled is defined else [])
+            + (['email_when_disabled'] if scheduled_reboot_email_when_disabled is defined else [])
+            + (['upgrade_at_shutdown'] if scheduled_reboot_upgrade_at_shutdown is defined else [])
+            + (['mailto'] if scheduled_reboot_mailto is defined else [])
+          }}
+      register: _scheduled_reboot_conffile_status
+      changed_when: false
+      check_mode: false
+      when: scheduled_reboot_restore_conffile | bool
+
+    - name: Restore the pristine defaults conffile (settings now live in local.conf)
+      ansible.builtin.copy:
+        src: "{{ scheduled_reboot_reference_conffile }}"
+        dest: /etc/default/scheduled-reboot
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - scheduled_reboot_restore_conffile | bool
+        - _scheduled_reboot_conffile_status.stdout | trim == 'restorable'
+
+    - name: Report a defaults conffile left modified
+      ansible.builtin.debug:
+        msg: >-
+          /etc/default/scheduled-reboot has local edits the role doesn't manage,
+          so it was left as is ({{ _scheduled_reboot_conffile_status.stdout | trim }}).
+          Move those settings into /etc/scheduled-reboot/local.conf (or the role
+          variables) and restore the file from {{ scheduled_reboot_reference_conffile }},
+          or package upgrades that change it will keep prompting.
+      when:
+        - scheduled_reboot_restore_conffile | bool
+        - _scheduled_reboot_conffile_status.stdout | trim is match('keep:')
+
+# scheduled-reboot < 0.56 only reads the defaults file, so keep editing it in
+# place there. Upgrade the package (scheduled_reboot_package_state: latest) to
+# move to local.conf.
+- name: Configure scheduled-reboot in the defaults file (package < 0.56)
+  when: not _scheduled_reboot_reference.stat.exists
+  block:
+    - name: Customize defaults file - email when disabled
+      ansible.builtin.lineinfile:
+        path: /etc/default/scheduled-reboot
+        regexp: '^\s*#?\s*email_when_disabled='
+        line: "email_when_disabled='{{ scheduled_reboot_email_when_disabled | lower }}'"
+      when: scheduled_reboot_email_when_disabled is defined
+
+    - name: Customize defaults file - mailto
+      ansible.builtin.lineinfile:
+        path: /etc/default/scheduled-reboot
+        regexp: '^\s*#?\s*mailto='
+        line: "mailto='{{ scheduled_reboot_mailto | lower }}'"
+      when: scheduled_reboot_mailto is defined
+
+    - name: Customize defaults file - reboots disabled
+      ansible.builtin.lineinfile:
+        path: /etc/default/scheduled-reboot
+        regexp: '^\s*#?\s*scheduled_reboots_disabled='
+        line: "scheduled_reboots_disabled='{{ scheduled_reboot_scheduled_reboots_disabled | lower }}'"
+      when: scheduled_reboot_scheduled_reboots_disabled is defined
+
+    - name: Customize defaults file - upgrade at shutdown
+      ansible.builtin.lineinfile:
+        path: /etc/default/scheduled-reboot
+        regexp: '^\s*#?\s*upgrade_at_shutdown='
+        line: "upgrade_at_shutdown='{{ scheduled_reboot_upgrade_at_shutdown | lower }}'"
+      when: scheduled_reboot_upgrade_at_shutdown is defined

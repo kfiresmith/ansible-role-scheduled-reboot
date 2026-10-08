@@ -63,3 +63,30 @@
       ansible.builtin.assert:
         that:
           - _post_reboot_enabled.stdout == 'enabled'
+
+    - name: Compare the defaults conffile with the package's reference copy
+      ansible.builtin.command:
+        cmd: cmp /etc/default/scheduled-reboot /usr/local/share/scheduled-reboot/default.conf
+      register: _conffile_cmp
+      changed_when: false
+      failed_when: false
+
+    - name: Assert the legacy conffile edit was reverted
+      ansible.builtin.assert:
+        that:
+          - _conffile_cmp.rc == 0
+        fail_msg: "/etc/default/scheduled-reboot should be restored to the pristine package copy"
+
+    - name: Read local.conf
+      ansible.builtin.slurp:
+        src: /etc/scheduled-reboot/local.conf
+      register: _local_conf
+
+    - name: Assert local.conf carries the role's settings
+      vars:
+        _local_conf_text: "{{ _local_conf.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'mailto=root' in _local_conf_text.splitlines()"
+          - "'email_when_disabled=true' in _local_conf_text.splitlines()"
+        fail_msg: "local.conf does not hold the expected settings"

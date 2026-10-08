@@ -27,6 +27,28 @@ Supported platforms
 The role dispatches on `ansible_facts['os_family']` (`Debian` or `RedHat`), so any Debian- or RHEL-family distribution with the `scheduled-reboot` package available should work, not just the specific versions listed above.
 
 
+Where settings are written
+--------------------------
+
+With scheduled-reboot 0.56 or later, the role writes its settings to
+`/etc/scheduled-reboot/local.conf`, which the package reads after
+`/etc/default/scheduled-reboot`. The defaults file is a package conffile. Once
+it's edited, every release that changes it makes dpkg stop at a conffile
+prompt, and a non-interactive upgrade fails there.
+
+Earlier versions of this role edited the defaults file in place. On hosts
+upgraded to 0.56, the role restores the defaults file from the package's
+reference copy (`/usr/local/share/scheduled-reboot/default.conf`), but only
+when every setting that differs is one the role now writes to `local.conf`.
+If the file has other local edits (say someone set
+`scheduled_reboots_disabled='true'` by hand), the role leaves it alone and
+prints what it found. Set `scheduled_reboot_restore_conffile: false` to skip
+the restore entirely.
+
+With a package older than 0.56, which doesn't read `local.conf`, the role
+falls back to editing the defaults file as before. Use
+`scheduled_reboot_package_state: latest` to move those hosts over.
+
 Role Variables
 --------------
 
@@ -114,6 +136,15 @@ Run package upgrades immediately prior to reboot [true|false] Default: false
 scheduled_reboot_upgrade_at_shutdown: false
 ```
 
+### Restore the defaults conffile
+
+Restore `/etc/default/scheduled-reboot` to the pristine package copy when its
+only local edits are settings the role manages. [true|false] Default: true
+
+```yaml
+scheduled_reboot_restore_conffile: true
+```
+
 Example Playbook
 ----------------
 
@@ -151,8 +182,11 @@ molecule test -s cron-fallback   # cron path + cron<->timer transitions
 Since the real `scheduled-reboot` package isn't hosted anywhere molecule can
 reach, `molecule/resources/tasks/stub-package.yml` builds and installs a
 minimal stand-in `.deb`/`.rpm` (same package name, a `post-reboot.service`
-unit, and an `/etc/default/scheduled-reboot` file) so the role's own install
-task is exercised as a real no-op, not skipped.
+unit, an `/etc/default/scheduled-reboot` file and its 0.56 reference copy) so
+the role's own install task is exercised as a real no-op, not skipped. The
+default scenario's prepare step edits the defaults file the way older role
+versions did, and verify checks that converge moved the setting to
+`local.conf` and restored the file.
 
 The docker containers need `privileged: true`, `security_opts: [apparmor=unconfined, seccomp=unconfined]`,
 and a read-write `/sys/fs/cgroup` bind mount for systemd to boot as PID 1 --
