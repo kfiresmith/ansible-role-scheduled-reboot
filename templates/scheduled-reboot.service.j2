@@ -6,3 +6,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/scheduled-reboot
+# 2-5 are handled failures: scheduled-reboot already logs them to syslog and
+# emails about them. Anything else (set -e abort, signal) still marks the unit
+# failed so systemd-level monitoring catches it.
+SuccessExitStatus=2 3 4 5

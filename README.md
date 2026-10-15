@@ -87,6 +87,11 @@ Behavior:
   `reboot_schedule_timer`) or back from the timer to cron (unset
   `reboot_schedule_timer`, keep `reboot_schedule` populated) just by changing
   variables and re-running the role.
+- `scheduled-reboot.service` treats the script's handled-failure exit codes
+  (2-5) as success (`SuccessExitStatus=`), because the script already logs and
+  emails those. Unexpected failures (other exit codes, signals) still leave the
+  unit `failed`, so generic "failed systemd units" monitoring only fires on
+  failures nobody was emailed about.
 
 ### Mail-to addresses
 
