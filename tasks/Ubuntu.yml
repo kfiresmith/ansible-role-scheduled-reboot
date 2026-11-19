@@ -4,4 +4,5 @@
   ansible.builtin.apt:
     name: scheduled-reboot
     state: "{{ scheduled_reboot_package_state }}"
+    update_cache: true
     cache_valid_time: 600

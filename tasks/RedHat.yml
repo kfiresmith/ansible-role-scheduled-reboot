@@ -2,7 +2,10 @@
 
 # The package module picks the host's own manager: yum on EL 7 (Python 2.7/3.6,
 # no python3-dnf, so ansible.builtin.dnf cannot run there) and dnf on EL 8+.
+# update_cache refreshes the metadata (makecache) before the install, so
+# state: latest sees the newest published scheduled-reboot.
 - name: Install scheduled-reboot rpm package
   ansible.builtin.package:
     name: scheduled-reboot
     state: "{{ scheduled_reboot_package_state }}"
+    update_cache: true
