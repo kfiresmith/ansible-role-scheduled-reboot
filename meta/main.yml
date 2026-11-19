@@ -17,6 +17,7 @@ galaxy_info:
         - resolute
     - name: EL
       versions:
+        - '7'
         - '8'
         - '9'
         - '10'

@@ -22,7 +22,7 @@ Supported platforms
 --------------------
 
 - Ubuntu: xenial, bionic, focal, jammy, noble, resolute (installs the `.deb` via `apt`)
-- Enterprise Linux (RHEL, Rocky Linux, etc.): 8, 9, 10 (installs the `.rpm` via `dnf`)
+- Enterprise Linux (RHEL, Rocky Linux, CentOS, etc.): 7, 8, 9, 10 (installs the `.rpm` via `yum` on EL 7 and `dnf` on EL 8+)
 
 The role dispatches on `ansible_facts['os_family']` (`Debian` or `RedHat`), so any Debian- or RHEL-family distribution with the `scheduled-reboot` package available should work, not just the specific versions listed above.
 
